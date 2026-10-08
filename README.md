@@ -55,3 +55,14 @@ If Altium fails to start, close any remaining X2.exe process and run:
 ~~~
 
 Backups are created under the current user's `Altium_EasyEDALoader_Backup` directory. The installer also places a copy of itself next to the backup registry XML. It checks the installed Altium 26.10.1.5 executable, the explicit Extensions registry path, known existing extension entries and exact input files. It will not auto-discover or overwrite another plugin folder. **The first actual AD26 installation remains untested: preflight first.**
+
+## First install failure and safe simulation
+
+The first attempted install reached the XML replacement call and failed with `Formato del percorso non valido`.
+It used `File.Replace(temp, registry, null)`; automatic rollback was attempted but must be verified independently.
+Check the active registry SHA256 matches the verified `before_install_20261008_152724_97098cae` backup and that no EasyEDA directory/registration remains.
+
+The revised `Manage-AD26.ps1` supplies a non-null full backup pathname to `File.Replace`.
+Before any further install, run `Manage-AD26.ps1 -Action SelfTest` in a new checkout.
+The self-test clones the live registry into a disposable temporary directory, simulates installation/removal and verifies the live registry did not change.
+The corrected script has not yet been run on the user workstation. It also verifies restored hashes and plugin folder state after a failed installation.
