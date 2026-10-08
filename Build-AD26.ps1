@@ -36,6 +36,7 @@ else {
 }
 Write-Host "Building (without installing) against: $AltiumInstallDir" -ForegroundColor Cyan
 $env:NL_ALTIUM_HOME = $AltiumInstallDir
-& dotnet build $project -c $Configuration -v minimal
+# Always compile afresh; fail on any new warnings rather than hiding them.
+& dotnet build $project -c $Configuration -v minimal --no-incremental -warnaserror
 if ($LASTEXITCODE -ne 0) { throw "Build failed with exit code $LASTEXITCODE" }
-Write-Host "Build succeeded; plugin NOT installed into Altium." -ForegroundColor Green
+Write-Host "Build succeeded with zero warnings/errors; plugin NOT installed into Altium." -ForegroundColor Green
