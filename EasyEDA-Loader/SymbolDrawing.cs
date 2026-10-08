@@ -290,6 +290,21 @@ namespace EasyEDA_Loader
                     });
                 }
             }
+            // Never silently write an unusable symbol. Every EasyEDA pin must
+            // survive reconstruction, and its connection location must be unique.
+            int sourcePinCount = Shapes.OfType<EeSymbolPin>().Count();
+            if (pins.Count != sourcePinCount)
+                throw new InvalidOperationException(
+                    $"Symbol reconstruction lost pins: source={sourcePinCount}, output={pins.Count}.");
+
+            if (pins.Any(pin =>
+                pin.X % SymbolLayoutGeometry.PinGridMils != 0 ||
+                pin.Y % SymbolLayoutGeometry.PinGridMils != 0))
+                throw new InvalidOperationException("Symbol pin is off the 100 mil Altium grid.");
+
+            if (pins.GroupBy(pin => (pin.X, pin.Y)).Any(group => group.Count() > 1))
+                throw new InvalidOperationException("Reconstructed symbol has overlapping pin locations.");
+
             return (rect, pins);
         }
 
