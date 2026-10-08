@@ -1,5 +1,11 @@
 ﻿using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+
+// Altium Designer 26 is a Windows desktop host (Windows 10 or newer).
+// Explicit assembly annotation is required because GenerateAssemblyInfo=false.
+// This allows CA1416 to validate Windows-only WinForms/DevExpress calls correctly.
+[assembly: SupportedOSPlatform("windows10.0")]
 
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information

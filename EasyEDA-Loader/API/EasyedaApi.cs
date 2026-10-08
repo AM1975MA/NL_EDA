@@ -88,7 +88,7 @@ namespace EasyEDA_Loader
                 Debug.WriteLine($"[API] Stack Trace: {ex.StackTrace}");
                 Console.WriteLine($"[API] Error: {ex.Message}");
                 Console.WriteLine($"[API] Stack Trace: {ex.StackTrace}");
-                throw ex;
+                throw;
             }
         }
 
@@ -139,7 +139,7 @@ namespace EasyEDA_Loader
             {
                 Debug.WriteLine($"[API] Error loading image: {ex.Message}");
                 Console.WriteLine($"[API] Error loading image: {ex.Message}");
-                throw ex;
+                throw;
             }
         }
 
@@ -172,7 +172,7 @@ namespace EasyEDA_Loader
             {
                 Debug.WriteLine($"[API] Error loading model: {ex.Message}");
                 Console.WriteLine($"[API] Error loading model: {ex.Message}");
-                throw ex;
+                throw;
             }
         }
 
@@ -205,7 +205,7 @@ namespace EasyEDA_Loader
             {
                 Debug.WriteLine($"[API] Error loading raw model: {ex.Message}");
                 Console.WriteLine($"[API] Error loading raw model: {ex.Message}");
-                throw ex;
+                throw;
             }
         }
 

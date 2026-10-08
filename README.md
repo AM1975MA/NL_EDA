@@ -2,7 +2,13 @@
 
 Development copy of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) (upstream commit `1ade34da9c59ce53d27199452c4f7df9184d4789`). Original license is **GPL-3.0**; [LICENSE](LICENSE) and original notices are retained.
 
-**Status: experimental, not yet compiled or tested on AD26.** This branch adapts project references to the user's Altium Designer **26.10.1.5** installation, which uses DevExpress **25.2**, and adds a build-only helper. A successful compile alone does not establish the extension can be loaded by AD26.
+**Status: experimental, not yet compiled or tested on AD26.** This branch adapts project references to the user's Altium Designer **26.10.1.5** installation, which uses DevExpress **25.2**, and adds a build-only helper.
+
+## Compiler warning fixes
+
+- Added explicit assembly-level `[SupportedOSPlatform("windows10.0")]` because upstream disables `GenerateAssemblyInfo`; this properly communicates the Windows-only Altium host requirement and addresses `CA1416` without disabling the analyzer.
+- Replaced the four `throw ex;` rethrows in `EasyedaApi.cs` with `throw;` to preserve exception stack traces (`CA2200`).
+- User's first build completed with **0 errors and 48 warnings**. This fix still needs a fresh build on the user's Windows workstation to confirm **0 warnings**. Do not interpret absence of compiler errors as proof of plugin runtime compatibility. A successful compile alone does not establish the extension can be loaded by AD26.
 
 ## Build only (Windows, .NET 8 SDK, installed Altium 26)
 
