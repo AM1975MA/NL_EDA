@@ -1,8 +1,8 @@
-# NL_EDA: controlled AD26 extension installer / uninstaller
-# Default is read-only. Actual changes require -Action Install/Uninstall AND -Apply.
+# NL_EDA: controlled AD26 extension installer / upgrade / uninstaller
+# Default is read-only. Actual changes require -Action Install/Upgrade/Uninstall AND -Apply.
 [CmdletBinding()]
 param(
-    [ValidateSet('Status','SelfTest','Install','Uninstall')][string]$Action = 'Status',
+    [ValidateSet('Status','SelfTest','Install','Upgrade','Uninstall')][string]$Action = 'Status',
     [string]$ExtensionsRoot = 'C:\ProgramData\Altium\Altium Designer {8336EC4A-4F8B-4AB7-846D-48468FBB3C82}\Extensions',
     [string]$AltiumInstallDir = 'C:\Program Files\Altium\AD23',
     [string]$BuildOutput = '',
@@ -250,6 +250,77 @@ if ($Action -eq 'Install') {
             throw "Installation failed, ROLLBACK VERIFIED: $reason"
         }
         throw "Installation failed; ROLLBACK INCOMPLETE: $($rollbackErrors -join ' | '). Original: $reason"
+    }
+}
+elseif ($Action -eq 'Upgrade') {
+    if ($registered.Count -ne 1 -or -not (Test-Path -LiteralPath $destination -PathType Container)) {
+        throw 'Upgrade requires an already registered EasyEDA plugin and existing plugin folder.'
+    }
+    $registeredPath = $registered[0].SelectSingleNode('Path')
+    if ($null -eq $registeredPath -or $registeredPath.InnerText -ne $destination) {
+        throw "Registered plugin path differs from expected '$destination'. No changes made."
+    }
+    if (-not $BuildOutput) { $BuildOutput = Join-Path $PSScriptRoot 'EasyEDA-Loader\bin\Release' }
+    foreach ($file in $pluginFiles) {
+        if (-not (Test-Path -LiteralPath (Join-Path $BuildOutput $file) -PathType Leaf)) {
+            throw "Missing build file '$file' in '$BuildOutput'. No changes made."
+        }
+    }
+    $backup = MakeBackup $registry 'before_upgrade'
+    $oldFiles = Join-Path $backup $pluginId
+    Copy-Item -LiteralPath $destination -Destination $oldFiles -Recurse -ErrorAction Stop
+    $oldContents = @(Get-ChildItem -LiteralPath $oldFiles -File -Recurse)
+    if ($oldContents.Count -eq 0) { throw "Old plugin snapshot is empty. No changes made." }
+    foreach ($oldFile in $oldContents) {
+        $relative = $oldFile.FullName.Substring($oldFiles.Length).TrimStart('\')
+        VerifyHash $oldFile.FullName (Join-Path $destination $relative)
+    }
+    $originalRegistryHash = (Get-FileHash -LiteralPath $registry -Algorithm SHA256).Hash
+
+    try {
+        foreach ($file in $pluginFiles) {
+            $from = Join-Path $BuildOutput $file
+            $to = Join-Path $destination $file
+            Copy-Item -LiteralPath $from -Destination $to -Force -ErrorAction Stop
+            VerifyHash $from $to
+        }
+        $currentRegistryHash = (Get-FileHash -LiteralPath $registry -Algorithm SHA256).Hash
+        if ($currentRegistryHash -ne $originalRegistryHash) {
+            throw 'Unexpected registry checksum change during upgrade.'
+        }
+        if (@(PluginEntries (ReadRegistry $registry)).Count -ne 1) {
+            throw 'Existing EasyEDA registration missing after upgrade.'
+        }
+        Write-Host "UPGRADE COMPLETE - Old plugin backup: $backup" -ForegroundColor Green
+        Write-Host 'Altium remains closed. Restart it to test the new UI.' -ForegroundColor Cyan
+    }
+    catch {
+        $reason = $_.Exception.Message
+        Write-Warning "Upgrade failed ($reason). Attempting to restore previous plugin."
+        $rollbackErrors = @()
+        try {
+            if (Test-Path -LiteralPath $destination -PathType Container) {
+                Remove-Item -LiteralPath $destination -Recurse -Force -ErrorAction Stop
+            }
+            Copy-Item -LiteralPath $oldFiles -Destination $destination -Recurse -ErrorAction Stop
+            foreach ($oldFile in $oldContents) {
+                $relative = $oldFile.FullName.Substring($oldFiles.Length).TrimStart('\')
+                VerifyHash $oldFile.FullName (Join-Path $destination $relative)
+            }
+        }
+        catch { $rollbackErrors += "Plugin restore: $($_.Exception.Message)" }
+        try {
+            $backupRegistryHash = (Get-FileHash -LiteralPath (Join-Path $backup 'ExtensionsRegistry.xml') -Algorithm SHA256).Hash
+            $liveRegistryHash = (Get-FileHash -LiteralPath $registry -Algorithm SHA256).Hash
+            if ($liveRegistryHash -ne $backupRegistryHash) {
+                throw 'Registry differs from pre-upgrade snapshot.'
+            }
+        }
+        catch { $rollbackErrors += "Registry verification: $($_.Exception.Message)" }
+        if ($rollbackErrors.Count -eq 0) {
+            throw "Upgrade failed; ORIGINAL PLUGIN RESTORED AND VERIFIED: $reason"
+        }
+        throw "Upgrade failed; RESTORE INCOMPLETE: $($rollbackErrors -join ' | '). Original: $reason"
     }
 }
 elseif ($Action -eq 'Uninstall') {
