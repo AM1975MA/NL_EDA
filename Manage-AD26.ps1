@@ -2,7 +2,7 @@
 # Default is read-only. Actual changes require -Action Install/Uninstall AND -Apply.
 [CmdletBinding()]
 param(
-    [ValidateSet('Status','Install','Uninstall')][string]$Action = 'Status',
+    [ValidateSet('Status','SelfTest','Install','Uninstall')][string]$Action = 'Status',
     [string]$ExtensionsRoot = 'C:\ProgramData\Altium\Altium Designer {8336EC4A-4F8B-4AB7-846D-48468FBB3C82}\Extensions',
     [string]$AltiumInstallDir = 'C:\Program Files\Altium\AD23',
     [string]$BuildOutput = '',
@@ -39,17 +39,32 @@ function PluginEntries([System.Xml.XmlDocument]$Doc) {
     return @($Doc.DocumentElement.SelectNodes("Item[@HRID='EasyEDA-Loader']"))
 }
 function SaveRegistry([System.Xml.XmlDocument]$Doc, [string]$File) {
-    $temp = "$File.NL_EDA_$([guid]::NewGuid().ToString('N')).tmp"
+    # Windows File.Replace needs explicit valid paths. Never pass a null backup path.
+    # All three files reside on the same NTFS volume; an independent verified
+    # snapshot also exists under Altium_EasyEDALoader_Backup for real changes.
+    $target = [System.IO.Path]::GetFullPath($File)
+    $folder = [System.IO.Path]::GetDirectoryName($target)
+    $name = [System.IO.Path]::GetFileName($target)
+    $token = [guid]::NewGuid().ToString('N')
+    $temp = [System.IO.Path]::Combine($folder, "$name.NL_EDA_$token.tmp")
+    $replaceBackup = [System.IO.Path]::Combine($folder, "$name.NL_EDA_$token.old")
     try {
         $settings = New-Object System.Xml.XmlWriterSettings
         $settings.Encoding = New-Object System.Text.UTF8Encoding($false)
         $settings.Indent = $false
         $writer = [System.Xml.XmlWriter]::Create($temp, $settings)
         try { $Doc.Save($writer) } finally { $writer.Close() }
-        [System.IO.File]::Replace($temp, $File, $null)
+        if (-not (Test-Path -LiteralPath $temp -PathType Leaf)) {
+            throw "XML temporary file not created: $temp"
+        }
+        [System.IO.File]::Replace($temp, $target, $replaceBackup)
+        # A Replace call that returns successfully must produce parseable XML.
+        [void](ReadRegistry $target)
     }
     finally {
         if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Force }
+        # Keep .old copy in place as an additional emergency recovery artifact.
+        # Install/Uninstall already keep timestamped verified user-folder backups.
     }
 }
 function AddField($Doc, $Parent, [string]$Name, [string]$Value) {
@@ -128,6 +143,45 @@ if ($Action -eq 'Status') {
     Write-Host 'STATUS COMPLETE - READ ONLY' -ForegroundColor Green
     return
 }
+if ($Action -eq 'SelfTest') {
+    $beforeHash = (Get-FileHash -LiteralPath $registry -Algorithm SHA256).Hash
+    # Exercise the exact XML save/replace/restore algorithm on a disposable copy.
+    # The production Extensions registry and plugin folder stay untouched.
+    $fixtureDir = Join-Path ([IO.Path]::GetTempPath()) ("NL_EDA_RegistryTest_" + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $fixtureDir -Force | Out-Null
+    try {
+        $fixturePath = Join-Path $fixtureDir 'ExtensionsRegistry.xml'
+        Copy-Item -LiteralPath $registry -Destination $fixturePath -ErrorAction Stop
+        VerifyHash $registry $fixturePath
+        $fixtureXml = ReadRegistry $fixturePath
+        if (@(PluginEntries $fixtureXml).Count -ne 0) {
+            throw "Self-test requires absent EasyEDA registration in source registry."
+        }
+        [void]$fixtureXml.DocumentElement.AppendChild((MakeEntry $fixtureXml (Join-Path $fixtureDir 'EasyEDA-Loader')))
+        SaveRegistry $fixtureXml $fixturePath
+        $installedXml = ReadRegistry $fixturePath
+        if (@(PluginEntries $installedXml).Count -ne 1) {
+            throw 'Self-test failed: simulated registry install entry missing.'
+        }
+        [void]$installedXml.DocumentElement.RemoveChild(@(PluginEntries $installedXml)[0])
+        SaveRegistry $installedXml $fixturePath
+        if (@(PluginEntries (ReadRegistry $fixturePath)).Count -ne 0) {
+            throw 'Self-test failed: simulated uninstall entry still present.'
+        }
+        # The real registry is compared with the original SHA256 taken before simulation.
+        $afterHash = (Get-FileHash -LiteralPath $registry -Algorithm SHA256).Hash
+        if ($afterHash -ne $beforeHash) {
+            throw 'Self-test safety failure: real registry checksum changed.'
+        }
+        Write-Host 'SELFTEST PASS: install/uninstall XML changes on temporary copy only' -ForegroundColor Green
+    }
+    finally {
+        if (Test-Path -LiteralPath $fixtureDir) {
+            Remove-Item -LiteralPath $fixtureDir -Recurse -Force
+        }
+    }
+    return
+}
 if (-not $Apply) {
     Write-Host "DRY RUN ONLY - pass -Apply to actually $Action" -ForegroundColor Yellow
     return
@@ -177,11 +231,25 @@ if ($Action -eq 'Install') {
         $reason = $_.Exception.Message
         Write-Warning "Install failed ($reason). Attempting rollback."
         $previous = Join-Path $backup 'ExtensionsRegistry.xml'
-        Copy-Item -LiteralPath $previous -Destination $registry -Force
-        if ($created -and (Test-Path -LiteralPath $destination)) {
-            Remove-Item -LiteralPath $destination -Recurse -Force
+        $rollbackErrors = @()
+        try {
+            Copy-Item -LiteralPath $previous -Destination $registry -Force -ErrorAction Stop
+            VerifyHash $previous $registry
         }
-        throw "Installation failed; rollback attempted: $reason"
+        catch { $rollbackErrors += "Registry recovery: $($_.Exception.Message)" }
+        try {
+            if ($created -and (Test-Path -LiteralPath $destination)) {
+                Remove-Item -LiteralPath $destination -Recurse -Force -ErrorAction Stop
+            }
+            if (Test-Path -LiteralPath $destination) {
+                throw 'EasyEDA plugin directory still present.'
+            }
+        }
+        catch { $rollbackErrors += "Plugin directory recovery: $($_.Exception.Message)" }
+        if ($rollbackErrors.Count -eq 0) {
+            throw "Installation failed, ROLLBACK VERIFIED: $reason"
+        }
+        throw "Installation failed; ROLLBACK INCOMPLETE: $($rollbackErrors -join ' | '). Original: $reason"
     }
 }
 elseif ($Action -eq 'Uninstall') {
