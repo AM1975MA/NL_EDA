@@ -32,3 +32,26 @@ Source code is copied without binary screenshots; see [upstream Assets](https://
 2. Test component import into temporary libraries; verify pin/pad mapping and 3D transform.
 3. Introduce robust LCSC-ID-based deduplication and quality/approval metadata.
 4. Implement target-aware, rollback-safe Altium extension deployment after validation.
+
+## Controlled AD26 deployment (not yet runtime tested)
+
+Run the new `Manage-AD26.ps1` in the cloned/downloaded repository. **Default is read-only** (safe even with Altium running):
+
+~~~powershell
+.\Manage-AD26.ps1
+~~~
+
+Both install and uninstall are dry-runs without `-Apply`. To install, close Altium first and run the strict build in the same checkout, then explicitly run:
+
+~~~powershell
+.\Build-AD26.ps1
+.\Manage-AD26.ps1 -Action Install -Apply
+~~~
+
+If Altium fails to start, close any remaining X2.exe process and run:
+
+~~~powershell
+.\Manage-AD26.ps1 -Action Uninstall -Apply
+~~~
+
+Backups are created under the current user's `Altium_EasyEDALoader_Backup` directory. The installer also places a copy of itself next to the backup registry XML. It checks the installed Altium 26.10.1.5 executable, the explicit Extensions registry path, known existing extension entries and exact input files. It will not auto-discover or overwrite another plugin folder. **The first actual AD26 installation remains untested: preflight first.**
