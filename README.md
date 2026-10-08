@@ -1,177 +1,28 @@
-# Motivations / Inspirations
+# NL_EDA — EasyEDALoader / Altium Designer 26
 
-Sourcing parts from JLCPCB can be a bit of a pain when you don't have the footprint, the symbol, or the model. 
+Development copy of [expired6978/EasyEDALoader](https://github.com/expired6978/EasyEDALoader) (upstream commit `1ade34da9c59ce53d27199452c4f7df9184d4789`). Original license is **GPL-3.0**; [LICENSE](LICENSE) and original notices are retained.
 
-If you're a user of KiCAD you're in luck as there's a nice project [easyeda2kicad.py](https://github.com/uPesy/easyeda2kicad.py) which will offline convert and pull models for you, and there's another script which integrates this script into KiCAD.
+**Status: experimental, not yet compiled or tested on AD26.** This branch adapts project references to the user's Altium Designer **26.10.1.5** installation, which uses DevExpress **25.2**, and adds a build-only helper. A successful compile alone does not establish the extension can be loaded by AD26.
 
-If you're an Altium user, you're stuck either running this script and importing via KiCAD import, or exporting the Altium files from EasyEDA and copying them manually into a footprint.
-
-I used easyeda2kicad as a reference for this project as well as AtliumLibraryLoader script for reference on Altium APIs to manipulate adding parts to libraries
-
-# Usage
-
-Using the extension is pretty straight forward once it is installed, there will be a new Menu option `EasyEDA Loader` while a SchDoc is active, this will open a Modal Dialog which prompts the LCSC Part number e.g. "C2040". Tick which part you want to add after searching and press Add to Library
-
-![Dialog](/Assets/Loader.PNG)
-
-Hitting OK will automatically create `EasyEDA.pcblib` and `EasyEDA.schlib` if they don't already exist in `Documents/AltiumEE`, create the footprint, download the 3d model, create the symbol, add part info, map the footprint to the symbol, then place the component into the active schematic at the bottom left.
-
-# Comparisons
-
-Left EasyEDA, Right Altium after import
-
-## Symbol
-
-![Comparison of EasyEDA Symbol](/Assets/Compare-Symbol.png)
-
-## Footprint
-
-![Comparison of EasyEDA Footprint](/Assets/Compare-Footprint.png)
-
-## 3D Model
-
-![Comparison of EasyEDA 3D](/Assets/Compare-3D.png)
-
-## Part Info
-
-![Comparison of EasyEDA Part Info](/Assets/PartInfo-EEL.PNG)
-
-# Building
-
-You shouldn't need anything special to build, just .NET 4.8, Language v8.0, and probably assembly references to Altium's internal libraries.
-
-The following Assembly references were made and can be found in
-
-```
-C:\Program Files\Altium\AD24\System
-C:\Program Files\Altium\AD24\System\DotNet\DevExpress.Wpf
-```
-
-```
-Altium.Controls
-Altium.Controls.Skins
-Altium.SDK
-Altium.SDK.Interfaces
-DevExpress.Data.v22.1
-DevExpress.Mvvm.v22.1
-DevExpress.Printing.v22.1.Core
-DevExpress.Utils.v22.1
-DevExpress.Xpf.Core.v22.1
-DevExpress.Xpf.Grid.v22.1.Core
-DevExpress.Xpf.Grid.v22.1
-```
-
-# Standalone
-
-The standalone version is a simple WPF app that draws the primitives to a Canvas and was mainly used to validate without having to repeatedly re-launch Altium. Unfortunately doesn't load the step file, but will load the raw obj model, you can also use it to manually save the step or obj.
-
-# Installation
-
-There are two ways to install EasyEDA-Loader.
-
-## Option 1: Install from a Release Archive (Recommended)
-
-Download the latest release archive from the [Releases](https://github.com/your-org/EasyEDALoader/releases) page. The archive contains a ready-to-deploy `dist\` folder alongside `Deploy.ps1`.
-
-1. Extract the archive to any location.
-2. Open a PowerShell terminal in that directory.
-3. Run the deploy script:
+## Build only (Windows, .NET 8 SDK, installed Altium 26)
 
 ```powershell
-.\Deploy.ps1
+.\Build-AD26.ps1 -AltiumInstallDir "C:\Program Files\Altium\AD23"
 ```
 
-The script will:
-- Automatically discover your Altium Designer installation (no hardcoded GUIDs).
-- Copy plugin files into the correct `Extensions\EasyEDA-Loader` folder.
-- Register the extension in `ExtensionsRegistry.xml`.
-- Prompt if Altium Designer is currently running (use `-Force` to skip the prompt).
+This references `Altium.SDK.dll`, `Altium.SDK.Interfaces.dll`, `Altium.Controls*` and DevExpress assemblies **from the local Altium installation**. Proprietary DLLs are not included in this repository.
 
-```powershell
-.\Deploy.ps1 -Force      # Deploy even if Altium is running
-.\Deploy.ps1 -SkipRegistry  # Copy files only, skip registry update
-```
+`All.ps1` and `Deploy.ps1` are **deliberately disabled** to prevent unintended registration into a wrong Altium instance. Read [docs/AD26.md](docs/AD26.md) before considering deployment.
 
-## Option 2: Build & Deploy from Source
+## Function
 
-If you have the source code, use the build script suite to build, package, and deploy in one step.
+The upstream plugin adds LCSC/EasyEDA parts directly to cumulative Altium `SchLib`/`PcbLib` libraries, including STEP 3D, without the KiCad Import Wizard. The original author reports known 3D alignment limitations and community members report AD26 startup/menu issues ([issue #5](https://github.com/expired6978/EasyEDALoader/issues/5), [issue #8](https://github.com/expired6978/EasyEDALoader/issues/8)). An independent AD26 smoke test is mandatory.
 
-### Script Overview
+Source code is copied without binary screenshots; see [upstream Assets](https://github.com/expired6978/EasyEDALoader/tree/main/Assets) for original comparison images.
 
-| Script | Description |
-|--------|-------------|
-| `_Shared.ps1` | Shared helper functions (dot-sourced by other scripts, do not run directly) |
-| `Build.ps1` | Builds the plugin (via MSBuild) and optionally the Standalone app (via dotnet) |
-| `Package.ps1` | Stages built artifacts into `dist\`, excluding Altium SDK and DevExpress DLLs (provided at runtime) |
-| `Deploy.ps1` | Copies `dist\` into the Altium Extensions folder and registers in `ExtensionsRegistry.xml` |
-| `All.ps1` | Orchestrates Build, Package, and Deploy in sequence |
+## Planned next changes
 
-### Prerequisites
-
-- Visual Studio 2022 or later with MSBuild (for plugin build)
-- .NET SDK 6.0+ (for Standalone build, if using `-IncludeStandalone`)
-- Altium Designer 24 installed on the target machine
-- PowerShell 5.1+ (run as Administrator when deploying)
-
-### Quick Start
-
-```powershell
-cd path\to\EasyEDALoader
-
-# Build, package, and deploy in one command:
-.\All.ps1
-
-# Debug build:
-.\All.ps1 -Configuration Debug
-
-# Deploy even if Altium Designer is currently running:
-.\All.ps1 -Force
-
-# Also build the Standalone viewer app:
-.\All.ps1 -IncludeStandalone
-```
-
-### Running Steps Individually
-
-```powershell
-# Step 1: Build the plugin (and optionally Standalone)
-.\Build.ps1
-.\Build.ps1 -Configuration Debug
-.\Build.ps1 -IncludeStandalone
-
-# Step 2: Stage files into dist\
-.\Package.ps1
-.\Package.ps1 -IncludeStandalone
-
-# Step 3: Deploy into Altium Designer
-.\Deploy.ps1
-.\Deploy.ps1 -Force
-.\Deploy.ps1 -SkipRegistry
-```
-
-### DLL Bundling Strategy
-
-The build scripts follow the same deployment pattern as the AltiumMCP extension. Only third-party and polyfill DLLs that Altium Designer does **not** ship are bundled alongside the plugin:
-
-**Bundled with the plugin:**
-| DLL | Purpose |
-|-----|---------|
-| `EasyEDA-Loader.dll` | The plugin |
-| `EasyEDA-Loader.Ins` | Server manifest |
-| `EasyEDA-Loader.rcs` | Menu resources |
-| `EasyEDA-Loader.dll.config` | Assembly binding redirects |
-| `Microsoft.Bcl.AsyncInterfaces.dll` | Async/await polyfill |
-| `Newtonsoft.Json.dll` | JSON serialization |
-| `System.Buffers.dll` | Span\<T\> / Memory\<T\> |
-| `System.IO.Pipelines.dll` | Stream pipe processing |
-| `System.Memory.dll` | Memory\<T\> support |
-| `System.Numerics.Vectors.dll` | SIMD Vector\<T\> |
-| `System.Runtime.CompilerServices.Unsafe.dll` | Unsafe ref operations |
-| `System.Threading.Tasks.Extensions.dll` | ValueTask support |
-| `System.ValueTuple.dll` | ValueTuple support |
-
-**NOT bundled (provided by Altium Designer at runtime):**
-`Altium.SDK.dll`, `Altium.SDK.Interfaces.dll`, `Altium.Controls.dll`, `Altium.Controls.Skins.dll`, and all `DevExpress.*.dll` (v22.1).
-
-## Known Issues
-The 3D model is not places *quite* right, something is still different from the reported translation and the actual. See [EeFootprint3dModel](/EasyEDA-Loader/FootprintShapes/EeFootprint3dModel.cs) for more information and how and where it retrieves model info from.
+1. Resolve actual AD26 SDK/host TargetFramework compatibility, then any compiler/XAML errors.
+2. Test component import into temporary libraries; verify pin/pad mapping and 3D transform.
+3. Introduce robust LCSC-ID-based deduplication and quality/approval metadata.
+4. Implement target-aware, rollback-safe Altium extension deployment after validation.
