@@ -66,3 +66,9 @@ The revised `Manage-AD26.ps1` supplies a non-null full backup pathname to `File.
 Before any further install, run `Manage-AD26.ps1 -Action SelfTest` in a new checkout.
 The self-test clones the live registry into a disposable temporary directory, simulates installation/removal and verifies the live registry did not change.
 The corrected script has not yet been run on the user workstation. It also verifies restored hashes and plugin folder state after a failed installation.
+
+## Preview UI and component selection (AD26)
+
+The first AD26 smoke test confirmed the loader window opens; however the preview used black backgrounds and the user could not activate Add to Library from a selected/highlighted row. The updated UI uses a **white schematic preview**, keeps the PCB layer-colored preview separate, labels the first-column import checkbox **Add**, enables editable checkbox cells while keeping informational columns read-only, and adds a **Select current** toggle button. An explicit **LCSC** column displays the part number returned by the EasyEDA search API, and exact LCSC matches are ordered first. The import action shows the count of selected parts and refuses to close with zero valid part records. The checkbox **Place last imported part in schematic** is an option and is applied after clicking **Add to Library**.
+
+UI changes must be recompiled and tested on the user's AD26 workstation; source changes alone do not update the installed binary.

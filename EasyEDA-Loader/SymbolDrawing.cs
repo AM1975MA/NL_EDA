@@ -116,7 +116,7 @@ namespace EasyEDA_Loader
             {
                 Width = arect.X2 - arect.X1,
                 Height = arect.Y2 - arect.Y1,
-                Stroke = Brushes.Red,
+                Stroke = Brushes.DarkRed,
                 StrokeThickness = 2,
             };
             Canvas.SetLeft(rect, arect.X1);
@@ -167,7 +167,7 @@ namespace EasyEDA_Loader
                 Y1 = pin.Y,
                 X2 = x2,
                 Y2 = y2,
-                Stroke = Brushes.Red,
+                Stroke = Brushes.DarkRed,
                 StrokeThickness = 2,
                 StrokeStartLineCap = PenLineCap.Round,
                 StrokeEndLineCap = PenLineCap.Round
@@ -177,7 +177,7 @@ namespace EasyEDA_Loader
             {
                 Text = pin.Designator,
                 FontSize = 50,
-                Foreground = Brushes.Red,
+                Foreground = Brushes.Black,
                 RenderTransformOrigin = anchorPoint,
             };
 

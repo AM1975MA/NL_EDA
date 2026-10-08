@@ -179,12 +179,12 @@
 
         <!-- Bottom Panel with Options and Buttons -->
         <Grid Grid.Row="2" Grid.Column="0" Margin="12,0,12,12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
 
-            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
                 <dxe:CheckEdit x:Name="closeDocumentsCheckBox" 
                           Content="Close library documents after adding"
                           VerticalAlignment="Center"
@@ -195,7 +195,7 @@
                           VerticalAlignment="Center"/>
             </StackPanel>
 
-            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
                 <dx:SimpleButton x:Name="saveModelButton" 
                         Content="Save Model..."
                         Width="100"
@@ -227,7 +227,7 @@
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
