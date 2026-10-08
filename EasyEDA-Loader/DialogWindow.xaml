@@ -39,6 +39,7 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
@@ -81,6 +82,13 @@
                                  Margin="0,8,0,0"
                                  IsEnabled="False"
                                  Click="SelectCurrentButton_Click"/>
+
+                <dxe:CheckEdit x:Name="useTestLibraryCheckBox"
+                               Grid.Row="3"
+                               Grid.ColumnSpan="2"
+                               Content="Test mode: import into separate AltiumEE_Test libraries"
+                               IsChecked="False"
+                               Margin="0,8,0,0"/>
             </Grid>
         </Border>
 

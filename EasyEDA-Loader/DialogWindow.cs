@@ -33,6 +33,7 @@ namespace EasyEDA_Loader
         public List<ComponentSelection> SelectedComponents { get; private set; }
         public bool CloseDocuments => closeDocumentsCheckBox?.IsChecked == true;
         public bool PlaceInSchematic => placeInSchematicCheckBox?.IsChecked == true;
+        public bool UseTestLibrary => useTestLibraryCheckBox?.IsChecked == true;
 
         public DialogWindow()
         {
