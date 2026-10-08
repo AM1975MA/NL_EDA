@@ -80,3 +80,15 @@ The `Manage-AD26.ps1 -Action Upgrade -Apply` action upgrades **only the installe
 Recommended sequence: with Altium closed, `Build-AD26.ps1` (must build with 0 errors/0 warnings), then `Manage-AD26.ps1 -Action Upgrade -Apply -BuildOutput <absolute Release path>`, then `Manage-AD26.ps1 -Action Status`.
 
 **Upgrade has not yet been executed on the target PC.** The earlier install, rollback and temporary-registry self-test succeeded. After updating, check Altium startup/menu before importing a part into a disposable project.
+
+## Compact schematic symbol geometry (AD26 prototype)
+
+The original loader synthesizes rectangular Altium symbols with fixed 800 mil margins, 100 mil pin pitch and 200 mil long pins. This can make dense symbols (e.g. C2040 RP2040) far larger than their EasyEDA originals. The new layout uses the largest positive-sized EasyEDA source rectangle (10 mil per coordinate unit), a minimum 300 mil body, and enlarges only enough to fit pin counts at 100 mil pitch with one-grid-unit edge margin. Pin connection coordinates stay on the 100 mil grid; the external pin length is 100 mil. Side assignment, pin designators, signal names and electrical types are preserved by the existing mapping. An invariant gate rejects lost pins, overlapping pins and off-grid pins. The WPF preview now fits symbols within 82% of its viewport.
+
+The prototype still reconstructs a simplified rectangular symbol, **not all graphical primitives or exact original symbol geometry**. User must visually verify the generated pin assignment and schematic readability before production use.
+
+Test project: `dotnet run --project Tests/SymbolGeometry/SymbolGeometry.Tests.csproj -c Release`. It tests compact dimensions and 128 pin-count density cases without proprietary Altium SDK assemblies. Actual Altium integration requires local `Build-AD26.ps1` and a runtime test.
+
+**Existing symbols are skipped by the current duplicate-name check; reinstalling does not resize previously imported symbols.** To test C2040 safely, enable the new `Test mode: import into separate AltiumEE_Test libraries` checkbox in the loader, then uncheck `Place last imported part in schematic` if you only need the libraries. Its test files go to `%USERPROFILE%\Documents\AltiumEE_Test` (subject to Windows Documents redirection), leaving normal `%USERPROFILE%\Documents\AltiumEE` libraries unchanged. If C2040 was already imported into the _test_ library, back up and clear those test libraries before running another comparable test.
+
+Source changes are not a tested Windows binary until the user builds (0 errors/0 warnings) and upgrades the currently running plugin with `Manage-AD26.ps1 -Action Upgrade -Apply`, after closing Altium.
