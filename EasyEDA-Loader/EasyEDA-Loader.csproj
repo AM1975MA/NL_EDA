@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>EasyEDA-Loader</AssemblyName>
+    <RootNamespace>EasyEDA_Loader</RootNamespace>
+    <LangVersion>9.0</LangVersion>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <DebugType>embedded</DebugType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Altium.Controls"><HintPath>Assemblies\Altium.Controls.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.Controls.Skins"><HintPath>Assemblies\Altium.Controls.Skins.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.SDK"><HintPath>Assemblies\Altium.SDK.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Altium.SDK.Interfaces"><HintPath>Assemblies\Altium.SDK.Interfaces.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Data.v22.1"><HintPath>Assemblies\DevExpress.Data.v22.1.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Mvvm.v22.1"><HintPath>Assemblies\DevExpress.Mvvm.v22.1.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Printing.v22.1.Core"><HintPath>Assemblies\DevExpress.Printing.v22.1.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Utils.v22.1"><HintPath>Assemblies\DevExpress.Utils.v22.1.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Xpf.Core.v22.1"><HintPath>Assemblies\DevExpress.Xpf.Core.v22.1.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v22.1.Core"><HintPath>Assemblies\DevExpress.Xpf.Grid.v22.1.Core.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="DevExpress.Xpf.Grid.v22.1"><HintPath>Assemblies\DevExpress.Xpf.Grid.v22.1.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="EasyEDA-Loader.Ins"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
+    <Content Include="EasyEDA-Loader.rcs"><CopyToOutputDirectory>Always</CopyToOutputDirectory></Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="Properties\licenses.licx" />
+    <None Remove="packages.config" />
+  </ItemGroup>
+
+</Project>
