@@ -214,26 +214,6 @@ namespace EasyEDA_Loader
         // EasyEDA symbol positions and sizes are stored in 10 mil coordinate units
         // (EeShape.ConvertToMM uses the same conversion). Pin connection positions
         // remain on a 100 mil grid; only the body size and margins are compacted.
-        private const int PinGridMils = 100;
-        private const int PinLengthMils = 100;
-        private const int MinimumBodyMils = 300;
-        private const int EdgePinMarginGrids = 1;
-        private const double EasyEdaUnitMils = 10.0;
-
-        private static double RoundUpToGrid(double value, int grid)
-        {
-            return Math.Ceiling(value / grid) * grid;
-        }
-
-        private static double CenterPinStart(double bodyLength, int count, int grid)
-        {
-            if (count <= 0) return 0;
-
-            // Round down, not nearest, to keep every pin on the same Altium grid.
-            double span = (count - 1) * grid;
-            return Math.Floor((bodyLength - span) / (2.0 * grid)) * grid;
-        }
-
         static public (AltiumSymbolRectangle, List<AltiumSymbolPin>) LayoutPins(List<EeSymbolShape> Shapes)
         {
             if (Shapes == null)
@@ -267,21 +247,16 @@ namespace EasyEDA_Loader
                 .OrderByDescending(rect => rect.Width * rect.Height)
                 .FirstOrDefault();
 
-            double sourceWidthMils = sourceBody == null ? 0 : sourceBody.Width * EasyEdaUnitMils;
-            double sourceHeightMils = sourceBody == null ? 0 : sourceBody.Height * EasyEdaUnitMils;
+            double sourceWidthMils = sourceBody == null ? 0 : sourceBody.Width * SymbolLayoutGeometry.EasyEdaUnitMils;
+            double sourceHeightMils = sourceBody == null ? 0 : sourceBody.Height * SymbolLayoutGeometry.EasyEdaUnitMils;
 
             int horizontalPins = Math.Max(items[(int)PinOrientation.Top].Count, items[(int)PinOrientation.Bottom].Count);
             int verticalPins = Math.Max(items[(int)PinOrientation.Left].Count, items[(int)PinOrientation.Right].Count);
 
-            double minWidthForPins = horizontalPins == 0 ? 0 :
-                (horizontalPins - 1 + 2 * EdgePinMarginGrids) * PinGridMils;
-            double minHeightForPins = verticalPins == 0 ? 0 :
-                (verticalPins - 1 + 2 * EdgePinMarginGrids) * PinGridMils;
-
-            double width = RoundUpToGrid(Math.Max(MinimumBodyMils,
-                Math.Max(sourceWidthMils, minWidthForPins)), PinGridMils);
-            double height = RoundUpToGrid(Math.Max(MinimumBodyMils,
-                Math.Max(sourceHeightMils, minHeightForPins)), PinGridMils);
+            var bodySize = SymbolLayoutGeometry.BodySize(
+                sourceWidthMils, sourceHeightMils, horizontalPins, verticalPins);
+            double width = bodySize.Width;
+            double height = bodySize.Height;
 
             var rect = new AltiumSymbolRectangle { X1 = 0, Y1 = 0, X2 = width, Y2 = height };
 
@@ -291,16 +266,16 @@ namespace EasyEDA_Loader
                 var sidePins = items[side];
                 var pinSide = (PinOrientation)side;
                 bool onHorizontal = pinSide == PinOrientation.Top || pinSide == PinOrientation.Bottom;
-                double along = CenterPinStart(onHorizontal ? width : height, sidePins.Count, PinGridMils);
+                double along = SymbolLayoutGeometry.CenterPinStart(onHorizontal ? width : height, sidePins.Count);
 
                 for (int index = 0; index < sidePins.Count; index++)
                 {
                     var sourcePin = sidePins[index];
-                    double x = onHorizontal ? along + index * PinGridMils :
+                    double x = onHorizontal ? along + index * SymbolLayoutGeometry.PinGridMils :
                         (pinSide == PinOrientation.Right ? width : 0);
                     double y = onHorizontal ?
                         (pinSide == PinOrientation.Bottom ? height : 0) :
-                        along + index * PinGridMils;
+                        along + index * SymbolLayoutGeometry.PinGridMils;
 
                     pins.Add(new AltiumSymbolPin
                     {
@@ -309,7 +284,7 @@ namespace EasyEDA_Loader
                         Orientation = AltiumSymbolPin.FromOrientation(pinSide),
                         Designator = sourcePin.Settings.SpicePinNumber,
                         Name = sourcePin.Name.Text,
-                        Length = PinLengthMils,
+                        Length = SymbolLayoutGeometry.PinLengthMils,
                         ShowName = sourcePin.Name.IsDisplayed,
                         PinType = AltiumSymbolPin.FromEEPinType(sourcePin.Settings.Type)
                     });
