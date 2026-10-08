@@ -211,111 +211,111 @@ namespace EasyEDA_Loader
             c.Children.Add(line);
         }
 
-        static public (AltiumSymbolRectangle, List<AltiumSymbolPin>) LayoutPins(List<EeSymbolShape> Shapes, int widthMargin = 8, int heightMargin = 8, int gridSize = 100)
+        // EasyEDA symbol positions and sizes are stored in 10 mil coordinate units
+        // (EeShape.ConvertToMM uses the same conversion). Pin connection positions
+        // remain on a 100 mil grid; only the body size and margins are compacted.
+        private const int PinGridMils = 100;
+        private const int PinLengthMils = 100;
+        private const int MinimumBodyMils = 300;
+        private const int EdgePinMarginGrids = 1;
+        private const double EasyEdaUnitMils = 10.0;
+
+        private static double RoundUpToGrid(double value, int grid)
         {
+            return Math.Ceiling(value / grid) * grid;
+        }
+
+        private static double CenterPinStart(double bodyLength, int count, int grid)
+        {
+            if (count <= 0) return 0;
+
+            // Round down, not nearest, to keep every pin on the same Altium grid.
+            double span = (count - 1) * grid;
+            return Math.Floor((bodyLength - span) / (2.0 * grid)) * grid;
+        }
+
+        static public (AltiumSymbolRectangle, List<AltiumSymbolPin>) LayoutPins(List<EeSymbolShape> Shapes)
+        {
+            if (Shapes == null)
+                throw new ArgumentNullException(nameof(Shapes));
+
             List<List<EeSymbolPin>> items = new()
             {
-                // Top
+                // Keep the input symbol's side assignment, pin numbers, and ordering.
                 Shapes.OfType<EeSymbolPin>().Where(shape => shape.Name.Rotation == 270 && shape.Name.TextAnchor == "end").OrderBy(s => s.Settings.PosX).ToList(),
-                // Left
                 Shapes.OfType<EeSymbolPin>().Where(shape => shape.Name.Rotation == 0 && shape.Name.TextAnchor == "start").OrderBy(s => s.Settings.PosY).ToList(),
-                // Right
                 Shapes.OfType<EeSymbolPin>().Where(shape => shape.Name.Rotation == 0 && shape.Name.TextAnchor == "end").OrderBy(s => s.Settings.PosY).ToList(),
-                // Bottom
                 Shapes.OfType<EeSymbolPin>().Where(shape => shape.Name.Rotation == 270 && shape.Name.TextAnchor == "start").OrderBy(s => s.Settings.PosX).ToList()
             };
 
-            // If there were uncategorized pins, put them somewhere
-            var uncategorized = Shapes.OfType<EeSymbolPin>().Except(items[0].Union(items[1]).Union(items[2]).Union(items[3])).ToList();
-
+            var uncategorized = Shapes.OfType<EeSymbolPin>()
+                .Except(items[0].Union(items[1]).Union(items[2]).Union(items[3])).ToList();
             var populated = items.Where(item => item.Count != 0).OrderBy(item => item.Count).ToList();
-            if (populated.Count == 0) // Everything was uncategorized? Weird, add everything to the left
-            {
+            if (populated.Count == 0)
                 items[1].AddRange(uncategorized);
-            }
-            else if (populated.Count == 1) // If there's only one direction, just add everything to it
-            {
-                populated.FirstOrDefault().AddRange(uncategorized);
-            }
-            else // There are multiple available directions, distribute them starting with the least populated
-            {
+            else if (populated.Count == 1)
+                populated[0].AddRange(uncategorized);
+            else
                 DistributeEvenly(uncategorized, items);
-            }
 
-            // Select the largest of the two sides, these will determine the dimensions of the encompassing rect
-            var widthPins = items[0].Count > items[3].Count ? items[0] : items[3];
-            var heightPins = items[1].Count > items[2].Count ? items[1] : items[2];
+            // Previous implementation added 800 mil on EACH symbol dimension
+            // even when the source EasyEDA body was compact. Instead, retain the
+            // source body's dimensions where available, extending them only if
+            // there are too many pins to preserve 100 mil pitch and edge margins.
+            var sourceBody = Shapes.OfType<EeSymbolRectangle>()
+                .Where(rect => rect.Width > 0 && rect.Height > 0)
+                .OrderByDescending(rect => rect.Width * rect.Height)
+                .FirstOrDefault();
 
-            var halfWidthMargin = widthMargin / 2;
-            var halfHeightMargin = heightMargin / 2;
+            double sourceWidthMils = sourceBody == null ? 0 : sourceBody.Width * EasyEdaUnitMils;
+            double sourceHeightMils = sourceBody == null ? 0 : sourceBody.Height * EasyEdaUnitMils;
 
-            if (items[0].Count == 0 && items[3].Count == 0) // Only Left/Right
-            {
-                heightMargin = 0;
-                halfHeightMargin = heightMargin / 2;
-            }
-            else if (items[1].Count == 0 && items[2].Count == 0) // Only Top/Bottom
-            {
-                widthMargin = 0;
-                halfWidthMargin = widthMargin / 2;
-            }
+            int horizontalPins = Math.Max(items[(int)PinOrientation.Top].Count, items[(int)PinOrientation.Bottom].Count);
+            int verticalPins = Math.Max(items[(int)PinOrientation.Left].Count, items[(int)PinOrientation.Right].Count);
 
-            var altiumRect = new AltiumSymbolRectangle
-            {
-                X1 = 0,
-                Y1 = 0,
-                X2 = (widthPins.Count + widthMargin) * gridSize + gridSize,
-                Y2 = (heightPins.Count + heightMargin) * gridSize + gridSize,
-            };
+            double minWidthForPins = horizontalPins == 0 ? 0 :
+                (horizontalPins - 1 + 2 * EdgePinMarginGrids) * PinGridMils;
+            double minHeightForPins = verticalPins == 0 ? 0 :
+                (verticalPins - 1 + 2 * EdgePinMarginGrids) * PinGridMils;
 
-            List<(double x, double y)> offsets = new()
-            {
-                (halfWidthMargin * gridSize, 0),
-                (0, halfHeightMargin * gridSize + gridSize),
-                (altiumRect.Width, halfHeightMargin * gridSize + gridSize),
-                (halfWidthMargin * gridSize, altiumRect.Height)
-            };
+            double width = RoundUpToGrid(Math.Max(MinimumBodyMils,
+                Math.Max(sourceWidthMils, minWidthForPins)), PinGridMils);
+            double height = RoundUpToGrid(Math.Max(MinimumBodyMils,
+                Math.Max(sourceHeightMils, minHeightForPins)), PinGridMils);
+
+            var rect = new AltiumSymbolRectangle { X1 = 0, Y1 = 0, X2 = width, Y2 = height };
 
             List<AltiumSymbolPin> pins = new();
-            for (var i = 0; i < items.Count; ++i)
+            for (int side = 0; side < items.Count; side++)
             {
-                double offset_x = offsets[i].x, offset_y = offsets[i].y;
-                for (var p = 0; p < items[i].Count; ++p)
+                var sidePins = items[side];
+                var pinSide = (PinOrientation)side;
+                bool onHorizontal = pinSide == PinOrientation.Top || pinSide == PinOrientation.Bottom;
+                double along = CenterPinStart(onHorizontal ? width : height, sidePins.Count, PinGridMils);
+
+                for (int index = 0; index < sidePins.Count; index++)
                 {
-                    var x = offset_x;
-                    var y = offset_y;
-                    switch ((PinOrientation)i)
-                    {
-                        case PinOrientation.Top:
-                            x += p * gridSize;
-                            break;
-                        case PinOrientation.Left:
-                            y += p * gridSize;
-                            break;
-                        case PinOrientation.Right:
-                            y += p * gridSize;
-                            break;
-                        case PinOrientation.Bottom:
-                            x += p * gridSize;
-                            break;
-                        default:
-                            break;
-                    }
+                    var sourcePin = sidePins[index];
+                    double x = onHorizontal ? along + index * PinGridMils :
+                        (pinSide == PinOrientation.Right ? width : 0);
+                    double y = onHorizontal ?
+                        (pinSide == PinOrientation.Bottom ? height : 0) :
+                        along + index * PinGridMils;
 
                     pins.Add(new AltiumSymbolPin
                     {
                         X = x,
                         Y = y,
-                        Orientation = AltiumSymbolPin.FromOrientation((PinOrientation)i),
-                        Designator = items[i][p].Settings.SpicePinNumber,
-                        Name = items[i][p].Name.Text,
-                        Length = 200,
-                        ShowName = items[i][p].Name.IsDisplayed,
-                        PinType = AltiumSymbolPin.FromEEPinType(items[i][p].Settings.Type)
+                        Orientation = AltiumSymbolPin.FromOrientation(pinSide),
+                        Designator = sourcePin.Settings.SpicePinNumber,
+                        Name = sourcePin.Name.Text,
+                        Length = PinLengthMils,
+                        ShowName = sourcePin.Name.IsDisplayed,
+                        PinType = AltiumSymbolPin.FromEEPinType(sourcePin.Settings.Type)
                     });
                 }
             }
-            return (altiumRect, pins);
+            return (rect, pins);
         }
 
         static public void DrawComponent(Canvas c, List<EeSymbolShape> Shapes)
@@ -329,7 +329,7 @@ namespace EasyEDA_Loader
                 DrawAltiumRectangle(c, rect);
                 foreach (var pin in pins)
                 {
-                    DrawAltiumPin(c, pin, 200);
+                    DrawAltiumPin(c, pin, pin.Length);
                 }
 
             }

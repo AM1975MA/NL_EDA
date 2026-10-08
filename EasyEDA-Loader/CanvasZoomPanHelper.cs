@@ -72,7 +72,12 @@ namespace EasyEDA_Loader
             if (viewportWidth <= 0 || viewportHeight <= 0)
                 return;
 
-            double scale = Math.Min(viewportWidth / contentBounds.Width, viewportHeight / contentBounds.Height);
+            // Preserve breathing room around the symbol/footprint in the preview.
+            // This affects only the WPF viewport, never the exported SchLib geometry.
+            const double viewportUsage = 0.82;
+            double scale = Math.Min(
+                viewportUsage * viewportWidth / contentBounds.Width,
+                viewportUsage * viewportHeight / contentBounds.Height);
 
             double centerOffsetX = (viewportWidth - contentBounds.Width * scale) / 2;
             double centerOffsetY = (viewportHeight - contentBounds.Height * scale) / 2;
