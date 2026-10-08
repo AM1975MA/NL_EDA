@@ -8,10 +8,10 @@
     xmlns:dxe="http://schemas.devexpress.com/winfx/2008/xaml/editors"
     mc:Ignorable="d"
     Title="EasyEDA Component Loader" 
-    Height="600" 
-    Width="1100"
-    MinHeight="500"
-    MinWidth="900"
+    Height="680" 
+    Width="1200"
+    MinHeight="560"
+    MinWidth="1000"
     WindowStartupLocation="CenterScreen"
     ShowInTaskbar="False"
     ResizeMode="CanResize"
@@ -36,6 +36,7 @@
         <Border Grid.Row="0" Grid.Column="0" Padding="12,15,12,10">
             <Grid>
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
@@ -63,6 +64,23 @@
                         Width="75"
                         Height="24"
                         Click="SearchButton_Click"/>
+
+                <TextBlock x:Name="selectionHelpText"
+                           Grid.Row="2"
+                           Grid.Column="0"
+                           Margin="0,10,8,0"
+                           VerticalAlignment="Center"
+                           Text="Tick Add to import a component, or select a row and click Select current." />
+
+                <dx:SimpleButton x:Name="selectCurrentButton"
+                                 Grid.Row="2"
+                                 Grid.Column="1"
+                                 Content="Select current"
+                                 Width="115"
+                                 Height="26"
+                                 Margin="0,8,0,0"
+                                 IsEnabled="False"
+                                 Click="SelectCurrentButton_Click"/>
             </Grid>
         </Border>
 
@@ -76,7 +94,7 @@
                          CurrentItemChanged="ResultsGrid_CurrentItemChanged">
             <dxg:GridControl.View>
                 <dxg:TableView ShowGroupPanel="False"
-                               AllowEditing="False"
+                               AllowEditing="True"
                                ShowIndicator="False"
                                NavigationStyle="Row"
                                AutoWidth="False"
@@ -86,8 +104,9 @@
             </dxg:GridControl.View>
             
             <dxg:GridControl.Columns>
-                <dxg:GridColumn Header="" 
-                                FieldName="AddToLibrary" 
+                <dxg:GridColumn Header="Add" 
+                                FieldName="AddToLibrary"
+                                AllowEditing="True" 
                                 Width="40"
                                 MinWidth="40"
                                 MaxWidth="40"
@@ -104,6 +123,7 @@
 
                 <dxg:GridColumn Header="FP" 
                                 FieldName="HasFootprint" 
+                                AllowEditing="False"
                                 Width="40"
                                 MinWidth="40"
                                 MaxWidth="40"
@@ -121,6 +141,7 @@
 
                 <dxg:GridColumn Header="3D" 
                                 FieldName="Has3d" 
+                                AllowEditing="False"
                                 Width="40"
                                 MinWidth="40"
                                 MaxWidth="40"
@@ -136,13 +157,21 @@
                     </dxg:GridColumn.CellTemplate>
                 </dxg:GridColumn>
 
+                <dxg:GridColumn Header="LCSC"
+                                FieldName="LcscCode"
+                                AllowEditing="False"
+                                Width="100"
+                                MinWidth="80"/>
+
                 <dxg:GridColumn Header="Name" 
                                 FieldName="Name" 
+                                AllowEditing="False"
                                 Width="150"
                                 MinWidth="100"/>
 
                 <dxg:GridColumn Header="Description" 
-                                FieldName="Description" 
+                                FieldName="Description"
+                                AllowEditing="False"
                                 Width="*"
                                 MinWidth="200"/>
             </dxg:GridControl.Columns>
@@ -161,7 +190,7 @@
                           VerticalAlignment="Center"
                           Margin="0,0,20,0"/>
                 <dxe:CheckEdit x:Name="placeInSchematicCheckBox" 
-                          Content="Place in schematic"
+                          Content="Place last imported part in schematic"
                           IsChecked="True"
                           VerticalAlignment="Center"/>
             </StackPanel>
@@ -226,7 +255,7 @@
                               Margin="0,0,0,10" 
                               HorizontalScrollBarVisibility="Hidden" 
                               VerticalScrollBarVisibility="Hidden" 
-                              Background="Black">
+                              Background="White">
                     <Canvas x:Name="symbolCanvas" Height="100" Width="100" 
                             HorizontalAlignment="Left" VerticalAlignment="Top"/>
                 </ScrollViewer>

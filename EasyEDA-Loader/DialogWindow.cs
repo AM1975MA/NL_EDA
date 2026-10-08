@@ -47,6 +47,7 @@ namespace EasyEDA_Loader
             resultsGrid.ItemsSource = searchResults;
             
             resultsGrid.SelectionChanged += ResultsGrid_SelectionChanged;
+            UpdateAddButtonState();
 
             _footprintHelper = new CanvasZoomPanHelper(footprintCanvas);
             footprintCanvasView.ScrollChanged += (s, e) =>
@@ -134,8 +135,18 @@ namespace EasyEDA_Loader
             UpdateAddButtonState();
         }
 
+        private void SelectCurrentButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (resultsGrid.CurrentItem is PartInfoViewModel selected)
+            {
+                selected.AddToLibrary = !selected.AddToLibrary;
+                UpdateAddButtonState();
+            }
+        }
+
         private async void ResultsGrid_CurrentItemChanged(object sender, CurrentItemChangedEventArgs e)
         {
+            UpdateAddButtonState();
             previewCts?.Cancel();
             previewCts?.Dispose();
             previewCts = new CancellationTokenSource();
@@ -253,7 +264,27 @@ namespace EasyEDA_Loader
 
         public void UpdateAddButtonState()
         {
-            addToLibraryButton.IsEnabled = searchResults.Any(p => p.AddToLibrary);
+            int count = searchResults.Count(p => p.AddToLibrary);
+            addToLibraryButton.IsEnabled = count > 0;
+            addToLibraryButton.Content = count > 0
+                ? $"Add to Library ({count})"
+                : "Add to Library";
+
+            if (resultsGrid?.CurrentItem is PartInfoViewModel current)
+            {
+                selectCurrentButton.IsEnabled = true;
+                selectCurrentButton.Content = current.AddToLibrary
+                    ? "Deselect current"
+                    : "Select current";
+            }
+            else
+            {
+                selectCurrentButton.IsEnabled = false;
+                selectCurrentButton.Content = "Select current";
+            }
+            selectionHelpText.Text = count > 0
+                ? $"{count} part(s) selected. Click Add to Library to import."
+                : "Tick Add to import a component, or select a row and click Select current.";
         }
 
         private async void SearchButton_Click(object sender, RoutedEventArgs e)
@@ -273,13 +304,15 @@ namespace EasyEDA_Loader
                 Mouse.OverrideCursor = Cursors.Wait;
 
                 // Run the API call on a background thread
-                var searchText = searchTextBox.Text;
+                var searchText = searchTextBox.Text.Trim();
                 var results = await Task.Run(() => Api.SearchProductInfoAsync(searchText));
 
                 // Add results on the UI thread
                 if (results != null && results.Count > 0)
                 {
-                    foreach (var part in results)
+                    // Exact LCSC part-number matches first; other matches retain API order.
+                    foreach (var part in results.OrderByDescending(p =>
+                        string.Equals(p.Part, searchText, StringComparison.OrdinalIgnoreCase)))
                     {
                         searchResults.Add(new PartInfoViewModel(part, this));
                     }
@@ -297,6 +330,7 @@ namespace EasyEDA_Loader
             {
                 Mouse.OverrideCursor = null;
                 searchButton.IsEnabled = true;
+                UpdateAddButtonState();
             }
         }
 
@@ -354,6 +388,13 @@ namespace EasyEDA_Loader
                     }
                 }
 
+                if (SelectedComponents.Count == 0)
+                {
+                    MessageBox.Show("No usable component data was returned for the selected part(s).",
+                        "Import unavailable", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
                 DialogResult = true;
                 Close();
             }
@@ -366,6 +407,8 @@ namespace EasyEDA_Loader
             finally
             {
                 Mouse.OverrideCursor = null;
+                cancelButton.IsEnabled = true;
+                UpdateAddButtonState();
             }
         }
 
@@ -484,6 +527,7 @@ namespace EasyEDA_Loader
             }
         }
 
+        public string LcscCode => PartInfo.Part ?? "";
         public string Name => PartInfo.Name ?? PartInfo.Part;
         public string Description => PartInfo.Description ?? "";
 
